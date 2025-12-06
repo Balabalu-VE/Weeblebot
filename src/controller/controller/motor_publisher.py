@@ -23,7 +23,10 @@ class MotorPublisher(Node):
         self.publisher_ = self.create_publisher(Motor, 'motor', 1)
         timer_period = 0.01  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.timer_pub = self.create_timer(timer_period, self.publish_value)
         device = "/dev/input/js0"
+        self.left_y = 0.0
+        self.right_y = 0.0
 
         # Wait until the controller appears
         while not os.path.exists(device):
@@ -37,6 +40,14 @@ class MotorPublisher(Node):
 
     def timer_callback(self):
         self.read_joystick()
+    
+    def publish_value(self):
+        msg = Motor()
+        msg.left_motor = self.left_y*MAX_SPEED*-1
+        msg.right_motor = self.right_y*MAX_SPEED
+        self.publisher_.publish(msg)
+
+
 
     def read_joystick(self):
         try:     
@@ -48,16 +59,10 @@ class MotorPublisher(Node):
                     if event_type & 0x02:  # 0x02 = JS_EVENT_AXIS
                         axis_values[number] = value / 32767.0  # Normalize
 
-                        left_y = axis_values.get(AXIS_LEFT_Y, 0.0)
-                        right_y = axis_values.get(AXIS_RIGHT_Y, 0.0)
-                
+                        self.left_y = axis_values.get(AXIS_LEFT_Y, 0.0)
+                        self.right_y = axis_values.get(AXIS_RIGHT_Y, 0.0)
                         #while True:
                         
-                        #print(f"Left Y: {left_y:.3f} | Right Y: {right_y:.3f}", end="\r")
-                        msg = Motor()
-                        msg.left_motor = left_y*MAX_SPEED*-1
-                        msg.right_motor = right_y*MAX_SPEED
-                        self.publisher_.publish(msg)
 
         except (FileNotFoundError, OSError):
             print("Joystick device not found at /dev/input/js0. Is the controller connected?")
