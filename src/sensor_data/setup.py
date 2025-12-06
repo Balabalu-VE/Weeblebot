@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'get_IMU = sensor_data.get_IMU:main',
+            'get_enc = sensor_data.get_enc:main',
         ],
     },
 )
