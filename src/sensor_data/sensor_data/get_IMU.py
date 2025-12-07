@@ -12,7 +12,7 @@ class IMUPublisher(Node):
         
         self.mpu6050 = mpu6050.mpu6050(0x68)
 
-        self.publisher_ = self.create_publisher(IMUdata, 'topic', 10)
+        self.publisher_ = self.create_publisher(IMUdata, 'imu_data', 10)
         timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0

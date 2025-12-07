@@ -17,7 +17,7 @@ class IMUToAngle(Node):
 
         self.subscription = self.create_subscription(
             IMUdata,
-            'topic',
+            'imu_data',
             self.imu_callback,
             10)
         
