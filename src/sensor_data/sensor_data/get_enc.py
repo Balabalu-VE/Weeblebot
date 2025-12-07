@@ -30,7 +30,7 @@ class EncPublisher(Node):
         msg = Encdata()
         msg_vel = Encdata()
 
-
+        #Left vel and right vel are in rad/s
         left_vel =(((self.left_enc.steps / 1600) * 2 * 3.14159) - self.left_pos_prev )  / (self.timer_period)  # Velocity = delta position / delta time
         right_vel =(((self.right_enc.steps  / 1600) * 2 * 3.14159) - self.right_pos_prev )  / (self.timer_period)  # Velocity = delta position / delta time
 
@@ -38,7 +38,7 @@ class EncPublisher(Node):
         msg_vel.right_enc = float(right_vel)
 
         self.publisher_enc_vel.publish(msg_vel)
-        self.get_logger().info('Publishing Velocity: "%s"' % msg_vel)
+        #self.get_logger().info('Publishing Velocity: "%s"' % msg_vel)
         
 
         msg.left_enc = float((self.left_enc.steps / 1600) * 2 * 3.14159)  # Convert counts to radians

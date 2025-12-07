@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'get_IMU = sensor_data.get_IMU:main',
             'get_enc = sensor_data.get_enc:main',
+            'imu_to_angle  = sensor_data.IMU_to_angle:main',
         ],
     },
 )

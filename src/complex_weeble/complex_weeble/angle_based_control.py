@@ -4,11 +4,11 @@ from messages.msg import DPad, Encdata
 from dual_tb9051ftg_rpi import motors, MAX_SPEED
 import math
 
-LENGTH = 0.125  # Length of pendulum in meters
+LENGTH = 41*0.0254  # Length of pendulum in meters
 MAX_ANGLE_RAD = math.radians(22.332997294)  # Maximum angle in radians
-RADIUS = 0.2794  # Wheel radius in meters
-KP = 50.0  # Proportional gain
-KD = 10.0  # Derivative gain
+RADIUS = 5.5*0.0254  # Wheel radius in meters
+KP = .005  # Proportional gain
+KD = 0.0001  # Derivative gain
 MAX_SPPED_RAD = math.sqrt(2*9.81*LENGTH*(math.cos(0) - math.cos(MAX_ANGLE_RAD))) / RADIUS
 
 class MotorSubscriber(Node):
@@ -28,6 +28,11 @@ class MotorSubscriber(Node):
         self.enc_speed = 0.0
         self.des_speed = 0.0
 
+        self.forward = False
+        self.back = False
+        self.Left = False
+        self.Right = False
+
         self.angle_subscription = self.create_subscription(
             Encdata,
             'pitch',
@@ -37,16 +42,28 @@ class MotorSubscriber(Node):
 
         timer_period = 0.01  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
+
+        self.absolute_speed = 0.0
         
         self.subscription  # prevent unused variable warning
 
     def timer_callback(self):
         if(self.forward or self.back):
-            control_signal = self.PD_control()
-            self.move_motors(control_signal)
+            self.absolute_speed += self.PD_control()
+            if(self.forward):
+                self.get_logger().info('Absolute Velocity: "%s"' % (self.absolute_speed))
+                self.move_motors(self.absolute_speed)
+            elif(self.back):
+                self.get_logger().info('Absolute Velocity: "%s"' % (self.absolute_speed))
+                self.move_motors(-self.absolute_speed)
+        else:
+            self.absolute_speed = 0.0
+            self.move_motors(0)
 
     def move_motors(self, control_signal):
         #Normalize desired speed to 0-1 and then multiply by MAX_SPEED
+        #self.get_logger().info('Left Encoder Velocity: "%s"' % int(control_signal / MAX_SPPED_RAD))
+        #self.get_logger().info('Right Encoder Velocity: "%s"' % int(control_signal / MAX_SPPED_RAD * MAX_SPEED))
         motors.motor1.setSpeed(int(control_signal / MAX_SPPED_RAD * -MAX_SPEED)) # Motor 1 is left which is negative direction
         motors.motor2.setSpeed(int(control_signal / MAX_SPPED_RAD * MAX_SPEED))
 
@@ -69,25 +86,28 @@ class MotorSubscriber(Node):
             self.Right = True
 
     def get_current_velocity(self, msg):
-        self.enc_speed = (msg.left_enc + msg.right_enc) / 2
-        self.get_logger().info('Left Encoder Velocity: "%s"' % msg.left_enc)
-        self.get_logger().info('Right Encoder Velocity: "%s"' % msg.right_enc)
+        self.enc_speed = (msg.left_enc) 
+        #self.get_logger().info('Left Encoder Velocity: "%s"' % msg.left_enc)
+        #self.get_logger().info('Right Encoder Velocity: "%s"' % msg.right_enc)
         
     def get_weeble_angle(self, msg):
         self.angle = msg.angle
     
-    def get_desired_speed(self):
-        self.des_speed = math.sqrt(2*9.81*LENGTH*(math.cos(self.angle) - math.cos(MAX_ANGLE_RAD))) / RADIUS
+    def get_desired_speed(self) -> float:
+        return math.sqrt(2*9.81*LENGTH*(math.cos(self.angle) - math.cos(MAX_ANGLE_RAD))) / RADIUS
 
     def PD_control(self) -> float:
-        self.get_desired_speed()
-        vel_error = self.des_speed - self.enc_speed
-        derivative = -self.enc_speed
+        des_speed = self.get_desired_speed()
+        vel_error = des_speed - abs(self.enc_speed)
+        derivative = -abs(self.enc_speed)
 
         control_signal = KP * vel_error + KD * derivative
 
-        # Clamp control signal to max speed
-        control_signal = max(min(control_signal, MAX_SPPED_RAD), -MAX_SPPED_RAD)
+        self.get_logger().info(f'Des speed: "{des_speed}", Enc speed: "{abs(self.enc_speed)}"')
+        #self.get_logger().info('Control signal: "%s"' % control_signal)
+
+        # # Clamp control signal to max speed
+        # control_signal = max(min(control_signal, MAX_SPPED_RAD), -MAX_SPPED_RAD)
 
         return control_signal
 
