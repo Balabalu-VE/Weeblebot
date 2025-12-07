@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'motor_publisher = controller.motor_publisher:main'
+            'motor_publisher = controller.motor_publisher:main',
+            'dpad_control = controller.dpad_control:main',
         ],
     },
 )
