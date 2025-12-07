@@ -23,7 +23,7 @@ class MotorPublisher(Node):
 
     def __init__(self):
         super().__init__('motor_publisher')
-        self.publisher_ = self.create_publisher(DPad, 'motor', 1)
+        self.publisher_ = self.create_publisher(DPad, 'dpad', 1)
         timer_period = 0.01  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         #self.timer_pub = self.create_timer(timer_period, self.publish_value)
