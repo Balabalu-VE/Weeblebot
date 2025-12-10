@@ -19,4 +19,21 @@ def generate_launch_description():
             package='sensor_data',
             executable='get_enc',
             name='get_enc'),
+        
+        #Node that runs UKF
+        launch_ros.actions.Node(
+            package='sensor_data',
+            executable='UKF',
+            name='UKF'),
+        #Node that runs controller
+        launch_ros.actions.Node(
+            package='sensor_data',
+            executable='get_IMU',
+            name='get_IMU'),
+        #Node that runs controller
+        launch_ros.actions.Node(
+            package='sensor_data',
+            executable='imu_to_angle',
+            name='imu_to_angle'),
+
     ])

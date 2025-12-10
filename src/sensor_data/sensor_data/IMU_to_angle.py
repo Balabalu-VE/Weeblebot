@@ -13,7 +13,7 @@ class IMUToAngle(Node):
         self.last_time = None
         self.initialized = False
 
-        self.alpha = 0.91  # Complementary filter coefficient
+        self.alpha = 0.81  # Complementary filter coefficient
 
         self.subscription = self.create_subscription(
             IMUdata,
@@ -21,7 +21,7 @@ class IMUToAngle(Node):
             self.imu_callback,
             10)
         
-        self.angle_publisher = self.create_publisher(Float32, 'angle', 10)
+        self.angle_publisher = self.create_publisher(Float32, 'angle_IMU_w_Gyro', 10)
 
         self.get_logger().info('IMU to Angle Node has been started.')
 
@@ -55,7 +55,7 @@ class IMUToAngle(Node):
         angle_msg.data = self.angle
         self.angle_publisher.publish(angle_msg)
 
-        self.get_logger().info(f'Published Angle: {self.angle:.6f} radians')
+        #self.get_logger().info(f'Published Angle: {self.angle:.6f} radians')
 
 def main(args=None):
     rclpy.init(args=args)

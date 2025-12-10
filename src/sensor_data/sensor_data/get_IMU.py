@@ -35,7 +35,7 @@ class IMUPublisher(Node):
         msg.gyro_z = gyroscope_data['z']
 
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg)
+        #self.get_logger().info('Publishing: "%s"' % msg)
 
 
 def main(args=None):
