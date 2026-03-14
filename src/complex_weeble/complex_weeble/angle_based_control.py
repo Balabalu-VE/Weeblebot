@@ -8,8 +8,8 @@ import math
 LENGTH = 41*0.0254  # Length of pendulum in meters
 MAX_ANGLE_RAD = math.radians(22.332997294)  # Maximum angle in radians
 RADIUS = 5.5*0.0254  # Wheel radius in meters
-KP = .006  # Proportional gain
-KD = 0.0001  # Derivative gain
+KP = .008  # Proportional gain
+KD = 0.00008  # Derivative gain
 MAX_SPPED_RAD = math.sqrt(2*9.81*LENGTH*(math.cos(0) - math.cos(MAX_ANGLE_RAD))) / RADIUS
 
 class MotorSubscriber(Node):
@@ -45,6 +45,11 @@ class MotorSubscriber(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         self.absolute_speed = 0.0
+
+        self.logged_des_vel = []
+        self.logged_actual_vel = []
+        self.logged_vel_error = []
+        self.logged_time = []
         
         self.subscription  # prevent unused variable warning
 
@@ -68,6 +73,7 @@ class MotorSubscriber(Node):
         else:
             self.absolute_speed = 0.0
             self.move_motors(0)
+
 
     def move_motors(self, control_signal):
         #Normalize desired speed to 0-1 and then multiply by MAX_SPEED
@@ -103,7 +109,7 @@ class MotorSubscriber(Node):
         self.angle = msg.data
     
     def get_desired_speed(self) -> float:
-        self.get_logger().info('Weeble Angle: "%s"' % math.degrees(self.angle))
+        self.get_logger().info(f'Weeble Angle: "{math.degrees(self.angle)}" Weeble Max Velocity Radians/s: "{0.75*math.sqrt(2*9.81*LENGTH*(math.cos(self.angle) - math.cos(MAX_ANGLE_RAD)))}')
         return 0.75*math.sqrt(2*9.81*LENGTH*(math.cos(self.angle) - math.cos(MAX_ANGLE_RAD))) / RADIUS
 
     def PD_control(self) -> float:
@@ -113,27 +119,50 @@ class MotorSubscriber(Node):
 
         control_signal = KP * vel_error + KD * derivative
 
-        self.get_logger().info(f'Des speed: "{des_speed}", Enc speed: "{abs(self.enc_speed)}"')
-        self.get_logger().info('Vel_error: "%s"' % vel_error)
+        #self.get_logger().info(f'Des speed: "{des_speed}", Enc speed: "{abs(self.enc_speed)}"')
+        #self.get_logger().info('Vel_error: "%s"' % vel_error)
+
+        self.logged_des_vel.append(self.get_desired_speed()*RADIUS)
+        self.logged_actual_vel.append(abs(self.enc_speed)*RADIUS)
+        self.logged_vel_error.append(abs(vel_error)*RADIUS)
+        self.logged_time.append(self.get_clock().now().nanoseconds * 1e-9)
 
         # # Clamp control signal to max speed
         #control_signal = max(min(control_signal, MAX_SPPED_RAD), -MAX_SPPED_RAD)
 
         return control_signal
+    def destroy_node(self):
+        import numpy as np
+        self.get_logger().info(
+            f'Destroying node and saving log...')
+
+        np.savez("vel_log.npz",
+                    des_vel=np.array(self.logged_des_vel),
+                    act_vel=np.array(self.logged_actual_vel),
+                    vel_error=np.array(self.logged_vel_error),
+                    t=np.array(self.logged_time))
+
+        self.get_logger().info("Saved log to vel_log.npz")
+        super().destroy_node()
 
 def main(args=None):
     rclpy.init(args=args)
 
     motor_subscriber = MotorSubscriber()
 
-    rclpy.spin(motor_subscriber)
+    
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    motors.forceStop()
-    motor_subscriber.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(motor_subscriber)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        motors.forceStop()
+        motor_subscriber.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

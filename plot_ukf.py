@@ -8,6 +8,9 @@ ukf = data["ukf"]
 acc = data["acc"]
 acc_comp = data["acc_comp"]
 
+# Shift time so it starts from 0
+t = t - t[0]
+
 plt.figure()
 plt.plot(t, ukf, label="UKF Angle")
 plt.plot(t, acc, label="Accelerometer Angle", linestyle='--')
