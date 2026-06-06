@@ -36,8 +36,8 @@ class WallFollowingPublisher(Node):
         dist_error = dist_error*((front_r_45/math.sqrt(2) - DESIRED_DISTANCE) + (back_r_45/math.sqrt(2) - DESIRED_DISTANCE))/abs(((front_r_45/math.sqrt(2) - DESIRED_DISTANCE) + (back_r_45/math.sqrt(2) - DESIRED_DISTANCE)))
         #self.get_logger().info("Distance errpr: "+ str(dist_error))
 
-        right_speed = (0.5 - front_error*KP + back_error*KP - dist_error*KP*2)* MAX_SPEED/10 
-        left_speed = (0.5 + front_error*KP - back_error*KP +dist_error*KP*2)* MAX_SPEED/10
+        right_speed = (0.5 - front_error*KP + back_error*KP - dist_error*KP*2)* MAX_SPEED/2 
+        left_speed = (0.5 + front_error*KP - back_error*KP +dist_error*KP*2)* MAX_SPEED/2
         
         #self.get_logger().info("Front Error: " + str(front_error))
         #self.get_logger().info("Back error: "+ str(back_error))
@@ -51,7 +51,9 @@ class WallFollowingPublisher(Node):
     def listener_callback(self, msg):
         self.FR_US = msg.front_right
         self.BR_US = msg.back_right
-
+    def stop_motors(self): 
+        motors.motor1.setSpeed(0.0)
+        motors.motor2.setSpeed(0.0)
 
 def main(args=None):
     rclpy.init(args=args)
@@ -63,5 +65,6 @@ def main(args=None):
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
+    wall_following.stop_motors()
     wall_following.destroy_node()
     rclpy.shutdown()
