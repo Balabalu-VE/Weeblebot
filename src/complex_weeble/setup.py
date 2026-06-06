@@ -27,7 +27,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'angle_based_control = complex_weeble.angle_based_control:main'
+            'angle_based_control = complex_weeble.angle_based_control:main',
+            'wall_following = complex_weeble.wall_following:main',
         ],
     },
 )

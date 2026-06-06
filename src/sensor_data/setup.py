@@ -31,6 +31,7 @@ setup(
             'get_enc = sensor_data.get_enc:main',
             'imu_to_angle  = sensor_data.IMU_to_angle:main',
             'UKF  = sensor_data.UKF:main',
+            'get_ultra_sonic = sensor_data.get_ultra_sonic:main',
         ],
     },
 )
