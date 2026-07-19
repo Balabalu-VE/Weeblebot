@@ -9,11 +9,11 @@ class UltraSonicPublisher(Node):
     def __init__(self):
         super().__init__('ultra_sonic_publisher')
 
-        self.sensorBR = DistanceSensor(echo=25, trigger=22)
-        self.sensorFR = DistanceSensor(echo=24, trigger=23)
+        self.sensorFR = DistanceSensor(echo=21, trigger=20)
+        self.sensorBR = DistanceSensor(echo=18, trigger=4)
 
         self.publisher_ = self.create_publisher(UltraSonicdata, 'ultra_sonic_data', 10)
-        timer_period = 0.1  # seconds
+        timer_period = 0.05  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
