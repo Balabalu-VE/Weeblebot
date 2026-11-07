@@ -3,6 +3,7 @@ from rclpy.node import Node
 import math
 
 from messages.msg import UltraSonicdata
+from std_msgs.msg import String
 from gpiozero import DistanceSensor
 from dual_tb9051ftg_rpi import motors, MAX_SPEED
 
@@ -21,10 +22,17 @@ class WallFollowingPublisher(Node):
         super().__init__('ultra_sonic_publisher')
         
         self.subscription = self.create_subscription(
-            UltraSonicdata,
-            'ultra_sonic_data',
-            self.listener_callback,
+            String,
+            'detected_room',
+            self.detected_room_callback,
             10)
+
+        self.subscription = self.create_subscription(
+                    UltraSonicdata,
+                    'ultra_sonic_data',
+                    self.listener_callback,
+                    10)
+        
         self.BR_US = DESIRED_DISTANCE*math.sqrt(2.01)
         self.FR_US = DESIRED_DISTANCE*math.sqrt(2.01)
         self.timer_period = .1
@@ -42,6 +50,8 @@ class WallFollowingPublisher(Node):
 
         self.front_history = deque(maxlen=1)
         self.back_history = deque(maxlen=1)
+
+        self.detected_room = ""
 
     def timer_callback(self):
         #Convert to meters and clamp
@@ -77,8 +87,13 @@ class WallFollowingPublisher(Node):
         self.get_logger().info("Right speed " + str(right_speed/MAX_SPEED) + " Left speed " + str(left_speed/MAX_SPEED))
         #self.get_logger().info("MAX_SPEED: " + str(MAX_SPEED))
 
-        motors.motor1.setSpeed(left_speed)
-        motors.motor2.setSpeed(-right_speed)
+        if(self.detected_room != ""):
+            motors.motor1.setSpeed(left_speed)
+            motors.motor2.setSpeed(-right_speed)
+        else:
+            motors.motor1.setSpeed(0.0)
+            motors.motor2.setSpeed(0.0)
+            self.logger().info(f"Room found: '{self.detected_room}")
     
     # def timer_callback_PID(self):
     #     #Convert to meters and clamp
@@ -129,7 +144,8 @@ class WallFollowingPublisher(Node):
         
         
 
-
+    def detected_room_callback(self, msg):
+        self.detected_room = msg.data
 
     def listener_callback(self, msg):
         self.FR_US = msg.front_right
