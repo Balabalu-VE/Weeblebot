@@ -24,7 +24,7 @@ class UltraSonicPublisher(Node):
         msg.back_right = self.sensorBR.distance * 100
 
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg)
+       # self.get_logger().info('Publishing: "%s"' % msg)
 
 
 def main(args=None):

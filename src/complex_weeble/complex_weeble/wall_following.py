@@ -9,6 +9,10 @@ from dual_tb9051ftg_rpi import motors, MAX_SPEED
 
 from collections import deque
 
+import sys
+import select
+import termios
+import tty
 
 DESIRED_DISTANCE = .55#m
 KP = 0.5
@@ -51,6 +55,7 @@ class WallFollowingPublisher(Node):
         self.front_history = deque(maxlen=1)
         self.back_history = deque(maxlen=1)
 
+        self.found_room = False
         self.detected_room = ""
 
     def timer_callback(self):
@@ -66,7 +71,7 @@ class WallFollowingPublisher(Node):
         front_r_45 = sum(self.front_history) / len(self.front_history)
         back_r_45 = sum(self.back_history) / len(self.back_history)
 
-        self.get_logger().info("front_r_45 " + str(front_r_45) + "  back_r_45 " + str(back_r_45))
+        #self.get_logger().info("front_r_45 " + str(front_r_45) + "  back_r_45 " + str(back_r_45))
         
         front_error =(front_r_45 - DESIRED_DISTANCE*math.sqrt(2.01))
         back_error = (back_r_45 - DESIRED_DISTANCE*math.sqrt(2.01))
@@ -77,24 +82,35 @@ class WallFollowingPublisher(Node):
         #Take Root Mean Square
         dist_error = math.sqrt( (front_r_45/math.sqrt(2) - DESIRED_DISTANCE)**2 + (back_r_45/math.sqrt(2) - DESIRED_DISTANCE)**2 )
         dist_error = dist_error*((front_r_45/math.sqrt(2) - DESIRED_DISTANCE) + (back_r_45/math.sqrt(2) - DESIRED_DISTANCE))/abs(((front_r_45/math.sqrt(2) - DESIRED_DISTANCE) + (back_r_45/math.sqrt(2) - DESIRED_DISTANCE)))
-        self.get_logger().info("Distance errpr: "+ str(dist_error))
+        #self.get_logger().info("Distance errpr: "+ str(dist_error))
 
         right_speed = (0.4 - front_error*KP + back_error*KP - dist_error*KP_dis + (front_error*.3/DESIRED_DISTANCE))* MAX_SPEED *.7
         left_speed = (0.4 + front_error*KP - back_error*KP + dist_error*KP_dis + (front_error*.3/DESIRED_DISTANCE))* MAX_SPEED *.7
         
-        self.get_logger().info("Front Error: " + str(front_error))
-        self.get_logger().info("Back error: "+ str(back_error))
-        self.get_logger().info("Right speed " + str(right_speed/MAX_SPEED) + " Left speed " + str(left_speed/MAX_SPEED))
+        #self.get_logger().info("Front Error: " + str(front_error))
+        #self.get_logger().info("Back error: "+ str(back_error))
+        #self.get_logger().info("Right speed " + str(right_speed/MAX_SPEED) + " Left speed " + str(left_speed/MAX_SPEED))
         #self.get_logger().info("MAX_SPEED: " + str(MAX_SPEED))
 
-        if(self.detected_room != ""):
+        if(self.detected_room == ""):
             motors.motor1.setSpeed(left_speed)
             motors.motor2.setSpeed(-right_speed)
         else:
             motors.motor1.setSpeed(0.0)
             motors.motor2.setSpeed(0.0)
-            self.logger().info(f"Room found: '{self.detected_room}")
+
+            if not self.found_room:
+                self.get_logger().info(
+                f"Room found: '{self.detected_room}'. Press any key to continue."
+                )
+                self.found_room = True
+
+            if self.keyboard_pressed():
+                self.detected_room = ""
+                self.found_room = False
+                self.get_logger().info("Key pressed. Resuming wall following.")    
     
+
     # def timer_callback_PID(self):
     #     #Convert to meters and clamp
     #     front_r_45 = min(self.FR_US / 100, 0.9)
@@ -142,7 +158,11 @@ class WallFollowingPublisher(Node):
     #     self.back_error_prev = back_error
     #     self.dist_error_prev = dist_error
         
-        
+    def keyboard_pressed(self):
+        if select.select([sys.stdin], [], [], 0)[0]:
+            sys.stdin.read(1)
+            return True
+        return False
 
     def detected_room_callback(self, msg):
         self.detected_room = msg.data
@@ -158,6 +178,11 @@ def main(args=None):
     rclpy.init(args=args)
 
     wall_following = WallFollowingPublisher()
+    
+
+    #Enabling terminal input
+    old_settings = termios.tcgetattr(sys.stdin)
+    tty.setcbreak(sys.stdin.fileno())
 
     try:
         rclpy.spin(wall_following)

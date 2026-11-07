@@ -31,6 +31,7 @@ public:
         int width = this->get_parameter("frame_width").as_int();
         int height = this->get_parameter("frame_height").as_int();
         string topicName = this->get_parameter("topic_name").as_string();
+		
 
         // ROS 2 Publisher
         publisher_ = this->create_publisher<std_msgs::msg::String>(topicName, 10);
@@ -47,12 +48,39 @@ public:
         tess_api_->SetVariable("tessedit_char_whitelist", "0123456789B");
 
         // Initialize USB Camera using V4L2 backend
-        camera_.open(cameraId, CAP_V4L2);
-        if (!camera_.isOpened()) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to open camera on /dev/video%d", cameraId);
-            return;
-        }
+        // Initialize USB Camera using V4L2 backend
+	RCLCPP_INFO(
+	    this->get_logger(),
+	    "Attempting to open camera device %d...",
+	    cameraId
+	);
 
+	camera_.open(cameraId, CAP_V4L2);
+
+	if (!camera_.isOpened()) {
+	    RCLCPP_ERROR(
+		this->get_logger(),
+		"Failed to open camera device %d",
+		cameraId
+	    );
+	    return;
+	}
+
+	// Configure camera
+	
+	camera_.set(cv::CAP_PROP_FOURCC,
+		    cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+
+	camera_.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+	camera_.set(cv::CAP_PROP_FRAME_HEIGHT, 360);
+	camera_.set(cv::CAP_PROP_FPS, 30);
+
+	RCLCPP_INFO(
+	    this->get_logger(),
+	    "Camera successfully opened: %dx%d",
+	    width,
+	    height
+	);
         camera_.set(CAP_PROP_FRAME_WIDTH, width);
         camera_.set(CAP_PROP_FRAME_HEIGHT, height);
 
@@ -65,6 +93,7 @@ public:
             chrono::milliseconds(33),
             std::bind(&RoomDetectorNode::processFrameCallback, this)
         );
+	initialized_ = true;
     }
 
     ~RoomDetectorNode() {
@@ -76,6 +105,11 @@ public:
         }
         destroyAllWindows();
     }
+    
+    bool isInitialized() const {
+    	return initialized_; 
+    }
+
 
 private:
     // Detects text angle and rotates image back to horizontal
@@ -170,6 +204,8 @@ private:
             processed.channels(), 
             static_cast<int>(processed.step)
         );
+	
+	tess_api_->SetSourceResolution(300);
 
         char* outText = tess_api_->GetUTF8Text();
         if (!outText) return "";
@@ -191,12 +227,30 @@ private:
         return recognizedText;
     }
 
+   
     // Main vision processing loop called by ROS 2 timer
     void processFrameCallback() {
-        Mat frame;
-        camera_ >> frame;
-        if (frame.empty()) return;
+	Mat frame;
 
+	if (!camera_.isOpened()) {
+	    RCLCPP_ERROR_THROTTLE(
+		this->get_logger(),
+		*this->get_clock(),
+		5000,
+		"Camera is not opened!"
+	    );
+	    return;
+	}
+
+	if (!camera_.read(frame) || frame.empty()) {
+	    RCLCPP_WARN_THROTTLE(
+		this->get_logger(),
+		*this->get_clock(),
+		5000,
+		"Failed to capture camera frame."
+	    );
+	    return;
+	}
         if (frame.cols != 640 || frame.rows != 360) {
             resize(frame, frame, Size(640, 360));
         }
@@ -343,12 +397,42 @@ private:
     int textHoldCounter_;
     string lastRecognizedText_;
     Rect frameBounds_;
+
+    bool initialized_ = false;
 };
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<RoomDetectorNode>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
+
+    try {
+        auto node = std::make_shared<RoomDetectorNode>();
+
+        if (!node->isInitialized()) {
+            RCLCPP_ERROR(
+                rclcpp::get_logger("main"),
+                "Room detector initialization failed."
+            );
+
+            node.reset();
+            rclcpp::shutdown();
+            return 1;
+        }
+
+        rclcpp::spin(node);
+
+        node.reset();
+    }
+    catch (const std::exception& e) {
+        RCLCPP_ERROR(
+            rclcpp::get_logger("main"),
+            "Exception: %s",
+            e.what()
+        );
+    }
+
+    if (rclcpp::ok()) {
+        rclcpp::shutdown();
+    }
+
     return 0;
 }
